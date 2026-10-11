@@ -1,6 +1,6 @@
 # 000: Repository, license and stack
 
-- **Status:** proposed, awaiting Gate 0
+- **Status:** partly decided (repo and license approved 2026-10-11; stack pending)
 - **Decides:** maintainer
 - **Date:** 2026-10-11
 - **Plan reference:** PLAN.md §5, Phase 0
@@ -65,4 +65,9 @@ Approve all seven as proposed, and answer the docs-license point under item 2.
 
 ## Decision
 
-_(maintainer fills in: approved / approved with changes / rejected, name, date)_
+2026-10-11, Jodson Graves (maintainer):
+
+- **Item 1, repository:** approved. "Create the repo."
+- **Item 2, license:** approved as AGPL-3.0-or-later, including the docs in this repo (no CC BY-SA split).
+- **Item 3, Node version:** awaiting an answer (Node 24 now, or wait for Node 26).
+- **Items 4–7:** not yet explicitly confirmed.

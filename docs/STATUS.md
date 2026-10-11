@@ -18,7 +18,7 @@ Last updated: 2026-10-11
 - Then Phase 1: R1 (Pol.is baseline and xid embedding), with R4–R6 running in parallel.
 
 ## Open questions
-- Should the docs in this repo be CC BY-SA 4.0 instead of AGPL (decision 000, item 2)?
+- Resolved 2026-10-11: repo approved and created; docs stay AGPL-3.0-or-later.
 - Node 24 LTS now, or wait for Node 26 to enter LTS later in October 2026 (decision 000, item 3)?
 
 ## Waiting on
