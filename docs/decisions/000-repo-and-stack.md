@@ -1,6 +1,6 @@
 # 000: Repository, license and stack
 
-- **Status:** partly decided (repo, license and Node 24 approved 2026-10-11; items 4–7 pending)
+- **Status:** approved 2026-10-11 (Gate 0 closed)
 - **Decides:** maintainer
 - **Date:** 2026-10-11
 - **Plan reference:** PLAN.md §5, Phase 0
@@ -70,4 +70,6 @@ Approve all seven as proposed, and answer the docs-license point under item 2.
 - **Item 1, repository:** approved. "Create the repo."
 - **Item 2, license:** approved as AGPL-3.0-or-later, including the docs in this repo (no CC BY-SA split).
 - **Item 3, language and runtime:** approved as TypeScript on Node.js 24 LTS. Moving to 26 later is a routine upgrade.
-- **Items 4–7:** not yet explicitly confirmed.
+- **Items 4–7 (Bolt in Socket Mode, Express, SQLite via better-sqlite3, Vitest and Playwright):** approved. The maintainer asked whether Wix (which hosts ntari.org) could replace Express. Answer: no. Express is a library inside the bridge on our own host, and serving the join and embed pages from Wix would put a third party in the identity path, prevent the required security headers, and break the same-site layout. Wix's role is DNS records for the bridge's subdomains (if ntari.org's DNS is managed there) and linking from the main site, at Gate 2.
+
+**Gate 0 closed.**
