@@ -14,12 +14,13 @@ Last updated: 2026-10-11
   - `docs/decisions/000-repo-and-stack.md`.
 
 ## Next
-- After Gate 0: a maintainer creates `NTARI-RAND/polis-bridge` on GitHub (empty, public). Then push `main`, and open `phase-0-bootstrap` as a PR for a human to merge.
+- Repo created 2026-10-11 (public). A human merges PR #1 (Phase 0).
 - Then Phase 1: R1 (Pol.is baseline and xid embedding), with R4–R6 running in parallel.
 
 ## Open questions
 - Resolved 2026-10-11: repo approved and created; docs stay AGPL-3.0-or-later.
-- Node 24 LTS now, or wait for Node 26 to enter LTS later in October 2026 (decision 000, item 3)?
+- Resolved 2026-10-11: Node.js 24 LTS.
+- Items 4–7 of decision 000 (Bolt, Express, SQLite, Vitest + Playwright) not yet explicitly confirmed.
 
 ## Waiting on
 - Gate 0: `docs/decisions/000-repo-and-stack.md` (maintainer approves repo, license, stack).
