@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# DRAFT Slack app manifest for the polis-bridge (research spike R4).
+# Not yet used to create an app. Rationale for every scope is in
+# docs/research/R4-slack-platform.md ("Recommendation").
+#
+# Notes for whoever creates the app from this file:
+# - Socket Mode needs a separate app-level token (starts with "xapp-") with
+#   the single scope connections:write. Tokens cannot be declared here; make it
+#   under Basic Information > App-Level Tokens after creating the app.
+# - Because Socket Mode is on, no request URLs are set anywhere below.
+# - After install, invite the bot to the five federation channels
+#   (/invite @Deliberation in each) so it can post round announcements.
+# - Run Bolt at log level INFO or higher. At DEBUG, Bolt and the Socket Mode
+#   client print whole payloads, which contain Slack user IDs.
+
+_metadata:
+  major_version: 1
+  minor_version: 1
+
+display_information:
+  name: Deliberation
+  description: Opens Pol.is deliberation rounds and hands eligible members a private, single-use link.
+  background_color: "#2c2d30"
+
+features:
+  bot_user:
+    display_name: deliberation
+    always_online: false
+  slash_commands:
+    - command: /deliberate
+      description: Open a deliberation round, or close one with "/deliberate close".
+      usage_hint: "[close]"
+      should_escape: false
+
+oauth_config:
+  scopes:
+    bot:
+      - commands         # receive /deliberate
+      - chat:write       # post announcements and summaries in channels the bot was invited to
+      - usergroups:read  # eligibility: read the members of a federation's user group
+      - channels:read    # eligibility (if Gate 1 picks channel membership): conversations.members on public channels
+
+settings:
+  interactivity:
+    is_enabled: true     # buttons and modals; payloads arrive over the Socket Mode connection
+  org_deploy_enabled: false
+  socket_mode_enabled: true
+  token_rotation_enabled: false
