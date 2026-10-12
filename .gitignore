@@ -26,3 +26,6 @@ test-results/
 Thumbs.db
 .vscode/
 .idea/
+
+# Private keys of any kind (e.g. local test issuers)
+*.pem
