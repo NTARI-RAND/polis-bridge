@@ -1,0 +1,28 @@
+# Secrets: real values live only on the host (CLAUDE.md, privacy floor)
+.env
+.env.*
+!env.example
+secrets/
+
+# Round keys and local data must never be committed
+*.key
+*.sqlite
+*.sqlite3
+*.db
+data/
+
+# Node / build output
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+
+# Claude Code per-user settings
+.claude/settings.local.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

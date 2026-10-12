@@ -1,0 +1,4 @@
+# LF everywhere: the results bundle is hashed with LF line endings (PLAN.md Phase 3, step 5),
+# and contributors work on Windows as well as Linux.
+* text=auto eol=lf
+LICENSE text eol=lf
