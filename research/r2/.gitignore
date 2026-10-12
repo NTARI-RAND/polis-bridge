@@ -1,0 +1,3 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Local overlay, run state and evidence (throwaway, never commit)
+.local/
