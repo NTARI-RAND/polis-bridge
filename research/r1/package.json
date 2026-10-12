@@ -1,0 +1,19 @@
+{
+  "name": "polis-bridge-r1-spike",
+  "version": "0.0.0",
+  "private": true,
+  "license": "AGPL-3.0-or-later",
+  "description": "R1 research spike: Pol.is legacy embed.js + xid in Chromium, Firefox and WebKit. Not production code.",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "host": "node host/server.mjs",
+    "setup-conversations": "node tools/setup-conversations.mjs",
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.61.0"
+  }
+}
