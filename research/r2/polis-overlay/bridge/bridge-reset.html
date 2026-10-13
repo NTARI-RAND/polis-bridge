@@ -1,0 +1,45 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<!--
+  R2 spike, shared-browser mitigation (b). Served by NTARI's reverse proxy on
+  the Pol.is origin (NOT an upstream change). The bridge's embed page loads it
+  in a hidden iframe before embed.js. It removes Pol.is's stored participant
+  tokens (localStorage/sessionStorage keys "participant_token_<conversation_id>",
+  see client-participation/js/util/polisStorage.js) so the next embed is
+  identified by its data-xid alone, then tells the parent page it is done.
+
+  The conversation id comes in the URL fragment (#c=<id>), which browsers never
+  send to the server, so nothing about the visit reaches any log.
+  Without #c it clears every participant_token_* key.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="referrer" content="no-referrer" />
+    <title>reset</title>
+  </head>
+  <body>
+    <script>
+      (function () {
+        var m = /(?:^#|&)c=([0-9A-Za-z]+)/.exec(location.hash || "");
+        var only = m ? "participant_token_" + m[1] : null;
+        var cleared = 0;
+        [window.localStorage, window.sessionStorage].forEach(function (s) {
+          try {
+            for (var i = s.length - 1; i >= 0; i--) {
+              var k = s.key(i);
+              if (k && k.indexOf("participant_token_") === 0 && (!only || k === only)) {
+                s.removeItem(k);
+                cleared++;
+              }
+            }
+          } catch (e) {
+            /* storage blocked: nothing to clear */
+          }
+        });
+        // The message carries no identifier, so "*" leaks nothing.
+        parent.postMessage({ type: "polis-bridge-reset", cleared: cleared }, "*");
+      })();
+    </script>
+  </body>
+</html>
