@@ -23,3 +23,11 @@ docker exec -i polis-r1-postgres-1 psql -U postgres -d polis-dev -X -q < researc
 ```
 
 `.local/` (gitignored) holds the probe output, admitted sets and audit runs.
+
+**At Pol.is `stable` d3d38cec and later** (upstream fix compdemocracy/polis#3048):
+`xid-exposure-check.mjs` stops with a `TypeError` after step 2. That is the
+expected, fixed result: `GET /api/v3/conversationUuid` now refuses a participant
+token (403), so there is no UUID to fetch the CSV with. The 2026-10-13 retest
+checked each link of the chain on its own with a local helper (gitignored, not
+in the repo); results are in `docs/research/R3-polis-data.md`, addendum. The
+other commands are unchanged.

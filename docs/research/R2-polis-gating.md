@@ -325,3 +325,82 @@ control, and design around the gaps:
 - Domain lock = Pol.is domain whitelist + CSP `frame-ancestors` on the proxy, and
   the embed page's `Referrer-Policy: same-origin`.
 - Identity provider for Pol.is admin with self-registration off; who holds those accounts.
+
+## Addendum: retest on stable d3d38ce (2026-10-13)
+
+**Why.** Upstream fix compdemocracy/polis#3048 (commit
+`a00807119d33b1a22264716a2dba16e787d952f7`) is now on `stable` at
+`d3d38cec8bf81ec2c67fc870ed2abacc59ad0ff2`. It locks the conversation UUID and
+the invite-code routes to the owner or a moderator, and wipes stored UUIDs
+(migration 000039). This section reruns R2 at that commit. Earlier sections
+are unchanged and describe `30367002`.
+
+**What changed upstream for R2 (Verified, `git diff 30367002..d3d38cec`).** The code
+behind every R2 finding is unchanged: `ensure-participant.ts` (allow-list only
+checked for requests with no user; token and owner-wide xid win),
+`routes/xids.ts` (`replace_all`, `ON CONFLICT DO NOTHING`), `xids.ts`,
+`utils/domain.ts`, `create-user.ts`, `polisStorage.js`, `file-server/`.
+`index.ejs` no longer loads `jwt-decode` from jsdelivr (W8).
+
+**Method.** R1's rebuilt stack (see the R1 addendum: `server`, `file-server`,
+`nginx-proxy` rebuilt at d3d38cec; postgres image kept, migrations 000038/000039
+applied with `polis-migrate`), then R2's production-mode config (`.env.r2`,
+`DEV_MODE=false`) and nginx overlay, exactly as `research/r2/README.md`.
+`npx playwright test --project=api --project=chromium --project=webkit`, one
+worker, fresh fixtures. W9/W10 ran in the same run this time.
+**35 tests: 32 passed, 3 failed.**
+
+**Results (Verified):**
+
+| Check | 30367002 | d3d38cec | Note |
+|---|---|---|---|
+| G1 enable procedure, who may call it | pass | pass | |
+| G2 non-admitted xid refused | pass | pass | |
+| G3 runtime admission | pass | pass | |
+| G4 removal does not revoke | pass (finding holds) | pass (finding holds) | after removal: xid alone 200, old token 200, control 403 |
+| G5 reuse across rounds of one owner | pass (finding holds) | pass (finding holds) | (i) 200 in B; (ii) 403; (iii) admit 200 but no row, vote 403 |
+| G6 signed-in accounts skip the list | pass (finding holds) | pass (finding holds) | new account created with `is_owner = true` |
+| G8a what the domain check reads | pass | pass | |
+
+| Browser check | Chromium old | Chromium new | WebKit old | WebKit new |
+|---|---|---|---|---|
+| W1 approved site, default policy | pass | pass | pass | pass |
+| W2 bridge page `no-referrer` | pass | pass | FAIL | **FAIL** |
+| W2b `same-origin` | pass | pass | pass | pass |
+| W2b `strict-origin` | pass | pass | FAIL | **FAIL** |
+| W2b `strict-origin-when-cross-origin` | pass | pass | pass | pass |
+| W2b `origin` | pass | pass | FAIL | **FAIL** |
+| W3 other site refused | pass | pass | pass | pass |
+| W4 Pol.is pages `no-referrer` breaks | pass | pass | pass | pass |
+| W5 shared browser, no mitigation (merge reproduced) | pass | pass | pass | pass |
+| W6 mitigation (b) reset page | pass | pass | pass | pass |
+| W7 signed-in account in same browser votes as account | pass | pass | pass | pass |
+| W8 third-party requests | pass | pass | pass | pass |
+| W9 CSP `frame-ancestors` | pass | pass | pass | pass |
+| W10 CSP blocks third parties | pass | pass | pass | pass |
+
+**What changed:**
+- W8 still passes, but what it observed changed. At 30367002 the participation
+  page tried two outside hosts. At d3d38cec it tries **only
+  `https://scripts.simpleanalyticscdn.com/latest.js`**; `jwt-decode` now comes
+  from Pol.is itself. Simple Analytics is still unconditional (Verified, both engines).
+- Everything else is unchanged.
+
+Evidence: `research/r2/.local/results-retest-d3d38ce.json` and
+`retest-d3d38ce-run.log` (gitignored).
+
+**Do the recommendations still stand?** All eight, and the Gate 1 decisions:
+**yes** (Verified by the reruns above unless marked).
+1. Admit through the API and check that each admission made a row: stands (G1, G5(iii)).
+2. Per-round xids: stands (G5).
+3. No revocation; the audit compares against the bridge's own set: stands (G4).
+4. Lock down sign-in at the identity provider: stands (G6, W7).
+5. Domain whitelist plus CSP `frame-ancestors`, neither a security boundary: stands (G8a, W3, W9).
+6. Embed page `Referrer-Policy: same-origin`: stands (W2/W2b in WebKit unchanged).
+7. Shared-browser mitigation (b): stands (W5, W6). The upstream issue for (c) is still worth filing.
+8. Block the xid map at the proxy: **still recommended, but the urgency has dropped**.
+   A participant can no longer get the UUID (R3 addendum), so the inside-the-round
+   leak R2 §5 described is closed upstream. Keep the proxy blocks as defence in
+   depth: the public `/api/v3/xid/<uuid>-xid.csv` still needs no login once
+   the owner has minted a UUID, and a known xid still votes without a token (R3
+   addendum). The CSP in (5) is still the way to stop Simple Analytics (W8, W10).

@@ -20,7 +20,7 @@ Pol.is database to see whose participant each vote landed under.
 ```sh
 git clone https://github.com/compdemocracy/polis.git
 cd polis
-git -c core.autocrlf=false checkout 30367002aa26c8796fd58aa8acf4203735e943bd   # branch `stable`, 2026-10-11
+git -c core.autocrlf=false checkout d3d38cec8bf81ec2c67fc870ed2abacc59ad0ff2   # branch `stable`, 2026-10-13 (was 30367002 until the 2026-10-13 retest)
 ```
 
 On Windows, check out with LF line endings (`git config core.autocrlf false`
@@ -36,7 +36,7 @@ EMBED_SERVICE_HOSTNAME=localhost:8180
 API_DEV_HOSTNAME=localhost:8180
 PUBLIC_SERVICE_URL=http://localhost:8180/api/v3
 TAG=r1
-GIT_HASH=30367002aa26c8796fd58aa8acf4203735e943bd
+GIT_HASH=d3d38cec8bf81ec2c67fc870ed2abacc59ad0ff2
 # admin login: this spike's throwaway issuer (served by host/server.mjs)
 AUTH_ISSUER=https://r1-local-issuer.test/
 JWKS_URI=http://host.docker.internal:8190/.well-known/jwks.json
@@ -73,6 +73,21 @@ docker compose $F up -d --no-deps postgres server file-server nginx-proxy
 docker restart polis-r1-nginx-proxy-1
 curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8180/embed.js   # expect 200
 ```
+
+**Upgrading an existing stack to a newer SHA** (how the 2026-10-13 retest was
+done, without recompiling the Rust migration tool): rebuild `server`,
+`file-server` and `nginx-proxy`, keep the running postgres image, copy the new
+migration files into it, then apply them with the same runner the image uses on
+first start:
+
+```sh
+docker compose -p polis-r1 $F build server file-server nginx-proxy
+MSYS_NO_PATHCONV=1 docker cp server/postgres/migrations/. polis-r1-postgres-1:/migrations/
+MSYS_NO_PATHCONV=1 docker exec polis-r1-postgres-1 sh -c 'DATABASE_URL="host=/var/run/postgresql user=$POSTGRES_USER dbname=$POSTGRES_DB sslmode=disable" POLIS_MIGRATIONS_DIR=/migrations polis-migrate apply'
+```
+
+This works only while `queue-rs/polis-migrate` itself is unchanged between the
+two SHAs (true for 30367002 → d3d38cec). Otherwise rebuild `postgres` too.
 
 Not started: `math-python`/`delphi` (the classic Clojure `math` service no
 longer exists at this SHA), `client-participation-alpha`, `dynamodb`,
@@ -121,4 +136,5 @@ docker stop r1-pw-server
 ## Expected result at this SHA
 
 C5, C5b fail in every engine and C8 fails in WebKit. Those failures are the
-findings, not test bugs. See the research note.
+findings, not test bugs. See the research note. Same result at 30367002 and
+at d3d38cec (retest 2026-10-13, Chromium and WebKit).
