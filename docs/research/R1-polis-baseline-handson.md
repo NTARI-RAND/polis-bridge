@@ -292,3 +292,76 @@ first's. Decisions needed for Gate 1:
 Follow-ups: rerun C1–C9 on a machine where native Firefox runs (here it ran
 Linux Firefox in Docker); test the alpha client only if the legacy client is
 ever dropped upstream; size the math worker (`math-python`/`delphi` image) for R6.
+
+## Addendum: retest on stable d3d38ce (2026-10-13)
+
+**Why.** Upstream merged a security fix, compdemocracy/polis#3048 (commit
+`a00807119d33b1a22264716a2dba16e787d952f7`): only a conversation's owner or a
+moderator can now get its conversation UUID or its invite codes, and a database
+migration (000039) wipes every stored UUID. It reached `stable` in
+`d3d38cec8bf81ec2c67fc870ed2abacc59ad0ff2` ("Promote edge to stable: owner
+checks on invite routes, connection budget, embeddings tables (#3052)"). This
+section reruns the R1 checks at that commit. Earlier sections are unchanged and
+describe `30367002`.
+
+**What changed upstream that could matter here (Verified, by reading
+`git diff 30367002..d3d38cec` under `server/`, `client-participation/`,
+`file-server/`, `server/postgres/`):**
+- `server/src/routes/conversationUuid.ts` and the `zinvites` routes in
+  `server/src/server.ts`: owner/moderator only (details in the R3 addendum).
+- Migrations 000038 (Delphi embedding tables, plain `real[]`, no pgvector) and
+  000039 (`UPDATE zinvites SET uuid = NULL`).
+- `client-participation/public/index.ejs`: `jwt-decode` is now served from the
+  Pol.is build (version 3.1.2) instead of `cdn.jsdelivr.net/...@latest`.
+  Simple Analytics is still loaded on every page.
+- `server/src/participant.ts`: a joiner that collides on a participant number
+  retries once; lock waits are capped at 5 s. No change to how a voter is identified.
+- Reports, exports and heavy admin reads now use their own one-connection
+  database pool (`REPORT_EXPORT_POOL_MAX`, default 1).
+- **Not changed:** `ensure-participant.ts` (token wins over xid), `xids.ts`,
+  `routes/xids.ts` (allow-list), vote handling, `utils/domain.ts` (domain
+  whitelist), request logging, `embed.js`, `polisStorage.js`, `file-server/`.
+
+**Method.** Same machine, same compose project `polis-r1`, same four services
+and `.env` (`DEV_MODE=true`). `server`, `file-server` and `nginx-proxy` were
+rebuilt from an LF checkout of d3d38cec. To spare the machine a Rust compile,
+the postgres image was **not** rebuilt: `queue-rs/polis-migrate` is identical at
+both commits, so the new migration files were copied into the running
+container and applied with its own `polis-migrate apply` (both applied; the
+server started with no migration-history error). Chromium and WebKit only, one
+worker, no traces. Firefox was not rerun.
+
+**Results (Verified, final run 2026-10-13; 15 passed, 5 failed):**
+
+| # | Check | Chromium 30367002 | Chromium d3d38cec | WebKit 30367002 | WebKit d3d38cec |
+|---|---|---|---|---|---|
+| C1 | First-load vote lands under the xid | pass | pass | pass | pass |
+| C2 | `ucv=false` hides voting | pass | pass | pass | pass |
+| C3 | `ucw` hides/shows the statement form | pass | pass | pass | pass |
+| C4 | 32-hex xid; length 1–999 | pass | pass | pass | pass |
+| C5 | Shared browser: second xid gets its own participant | FAIL | **FAIL** | FAIL | **FAIL** |
+| C5b | Shared browser: non-admitted xid refused | FAIL | **FAIL** | FAIL | **FAIL** |
+| C6 | Allow-list on: non-admitted xid cannot vote | pass | pass | pass | pass |
+| C7 | Runtime admission works at once | pass | pass | pass | pass |
+| C8 | Domain whitelist (`DEV_MODE=true`) | pass | pass | FAIL | **FAIL** |
+| C9 | Direct link `/<conv>?xid=` votes on first load | pass | pass | pass | pass |
+
+Nothing changed. The failures are the same and fail for the same reasons:
+- C5/C5b: the second load sent the first member's token, and the first member's
+  participant ended up with 2 votes and no record for the second xid.
+- C8 in WebKit: the off-domain Referer was trimmed to `http://localhost:8180/`.
+
+Evidence: `research/r1/.local/results-retest-d3d38ce.json` and
+`retest-d3d38ce-run.log` (gitignored).
+
+**Do the recommendations still stand?**
+1. Shared-browser policy: **stands** (Verified: C5/C5b unchanged; the upstream
+   fix did not touch token-over-xid identity). R2's mitigation (b) is still needed.
+2. Domain whitelist is not a security boundary: **stands** (Verified for
+   `DEV_MODE=true`; see the R2 addendum for production mode).
+3. Pol.is logs contain xids: **stands** (Inferred: logging code and `embed.js`
+   unchanged, not re-measured).
+4. OIDC admin identity: **stands** (unchanged).
+5. Participant JWT keys must be set: **stands** (unchanged).
+6. The pin moves to `stable` @ `d3d38cec8bf81ec2c67fc870ed2abacc59ad0ff2`,
+   because it contains the #3048 security fix (R3) and nothing in R1 regressed.

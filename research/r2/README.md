@@ -9,7 +9,7 @@ embed page `host/embed.html` + `host/r1-embed.js`).
 ## 1. Run Pol.is in production mode (no rebuild)
 
 Start from R1's setup (`research/r1/README.md`, section 1: pinned clone at
-`30367002aa26c8796fd58aa8acf4203735e943bd`, `.env`, `docker-compose.r1.yml`,
+`d3d38cec8bf81ec2c67fc870ed2abacc59ad0ff2`, `.env`, `docker-compose.r1.yml`,
 images already built). Then, in the Pol.is clone:
 
 ```sh
@@ -62,7 +62,9 @@ Results: `.local/results.json` (gitignored), observations as annotations.
 All pass except **WebKit W2 and W2b (`strict-origin`, `origin`)**: in WebKit
 the Pol.is iframe's own API calls follow the embedding page's
 `Referrer-Policy`, so those policies strip `parent_url` and the domain check
-refuses the voter. Those failures are findings, not test bugs.
+refuses the voter. Those failures are findings, not test bugs. Same result at
+30367002 and at d3d38cec (retest 2026-10-13); at d3d38cec W8 lists only
+`scripts.simpleanalyticscdn.com` (the jsdelivr script is now self-hosted).
 
 ## Files
 
