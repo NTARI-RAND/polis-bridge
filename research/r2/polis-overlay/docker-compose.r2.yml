@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# NTARI polis-bridge R2/R3 local override (not upstream). Use together with
+# upstream docker-compose.yml and R1's docker-compose.r1.yml. Needs
+# R2_DIR = absolute path of research/r2 (forward slashes on Windows).
+# No image is rebuilt: nginx-proxy just gets a different config template and
+# one static page mounted read-only.
+services:
+  nginx-proxy:
+    volumes:
+      - ${R2_DIR}/.local/overlay/default.conf.template:/etc/nginx/conf.d/default.conf.template:ro
+      - ${R2_DIR}/polis-overlay/bridge:/usr/share/nginx/bridge:ro

@@ -1,0 +1,19 @@
+{
+  "name": "polis-bridge-r2-spike",
+  "version": "0.0.0",
+  "private": true,
+  "license": "AGPL-3.0-or-later",
+  "description": "R2 research spike: Pol.is xid allow-list, domain whitelist and shared-browser mitigation. Reuses research/r1/lib. Not production code.",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "host": "node host/server.mjs",
+    "setup": "node tools/setup.mjs",
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.61.0"
+  }
+}
