@@ -278,3 +278,102 @@ scratch stack was changed):
   rotation length (proposal: 3 × 10 MB per service).
 - How the bridge reads Pol.is at close: internal API with the operator login, or
   the `bridge_audit` database role (recommended for the audit, read-only).
+
+## Addendum: retest on stable d3d38ce (2026-10-13)
+
+**Why.** Upstream fixed the core of this note's biggest finding in
+compdemocracy/polis#3048 (commit `a00807119d33b1a22264716a2dba16e787d952f7`).
+The fix is on `stable` at `d3d38cec8bf81ec2c67fc870ed2abacc59ad0ff2`. This
+section reruns R3 at that commit. Earlier sections are unchanged and describe
+`30367002`.
+
+**What the fix does (Verified, code at d3d38cec):**
+- `GET /api/v3/conversationUuid` (`server/src/routes/conversationUuid.ts`)
+  now calls `isModerator(zid, uid)` first. Anyone else gets 403
+  `polis_err_conversation_uuid_auth`, and no UUID is created for them.
+- `GET /api/v3/zinvites/:zid` (`server/src/server.ts`) now refuses non-owners
+  (403) and returns only `zid, zinvite, created`, never `uuid`. The old code's
+  owner check could never fail: it tested `!results.rows`, which is false for
+  an empty result. So at 30367002 **any logged-in caller, a participant
+  included, could read the UUID there too**, a second leak path this note did
+  not list (Inferred from the old code; not run at 30367002).
+  `POST /api/v3/zinvites/:zid` also refuses non-owners now.
+- Migration `000039_clear_zinvites_uuid.sql` sets every stored UUID to NULL.
+  Owners get a new one on demand from `conversationUuid`.
+- **Not changed:** `GET /api/v3/xid/<uuid>-xid.csv` still needs no login;
+  `POST /api/v3/votes` still accepts an xid with no token (`ensure-participant.ts`);
+  `reportExport` still needs no login; `convSubscriptions` unchanged; logging unchanged.
+- Other changes: reports, exports and heavy admin reads now share one database
+  connection by default (`REPORT_EXPORT_POOL_MAX=1`, 30 s wait), so under load an
+  export may wait or fail rather than slow down voting (Inferred, not load-tested).
+
+**Method.** The stack as in the R2 addendum (`DEV_MODE=false`, privacy log
+overlay), fresh R2 fixtures. Before applying migration 000039, one existing
+conversation's UUID was saved (locally, gitignored) so the old link could be
+tried afterwards. The database had 18 conversations with 18 UUIDs before the
+migration and 0 after.
+Ran `exports-probe.mjs`, `xid-exposure-check.mjs`, `run-audit.mjs` (rounds P, A,
+B, D), and a local split version of the chain check that tests each link
+separately (its output is in `research/r3/.local/retest-xid-chain.json`, gitignored).
+Round P has 3 admitted test xids this time (6 last time), so counts differ.
+
+**Results (Verified unless marked):**
+
+| Check | 30367002 | d3d38cec |
+|---|---|---|
+| `conversationUuid` with a participant token | 200, UUID | **403** `polis_err_conversation_uuid_auth` |
+| `conversationUuid`, unrelated signed-in account | 200, UUID | **403** |
+| `conversationUuid`, no login | 401 | 401 |
+| `conversationUuid`, owner | 200 | 200 |
+| `GET zinvites`, participant token / other account | 200 with `uuid` (Inferred, old code) | **403** / **403** |
+| `GET zinvites`, owner | 200 with `uuid` (Inferred) | 200, `{codes}` only, no `uuid` |
+| `POST zinvites`, participant / other account | allowed (Inferred, old code) | **403** / **403** |
+| xid CSV, owner-minted UUID, **no login** | 200 (6 rows) | **200 (3 rows), unchanged** |
+| xid CSV with a UUID minted before the migration | n/a | **404** `polis_error_data_unknown_report`; UUID now NULL |
+| Full chain (participant → UUID → CSV → vote as other member) | open, run end to end | **closed at step 2**; original script stops (`TypeError`, no UUID) |
+| Vote with another member's **known** xid, no token | 200, vote changed | **200, vote changed (0 → 1)**, unchanged |
+| `reportExport` (8 files), no login | 200 | 200, unchanged |
+| Report create/list by owner; list by others | 200; 403 | 200; 403 |
+| `xids/csv` owner / no login | 200 / 401 | 200 / 401 |
+| `convSubscriptions` e-mail with `subscribe_type=0` | 200, stored | **200, stored (1 row)**, unchanged (test e-mail removed again) |
+| Audit P (allow-list / file) | PASS | PASS / PASS |
+| Audit A, B, D | FAIL, FAIL, PASS | FAIL, FAIL, PASS (A: 2 no-xid, 2 not admitted; B: 1 + 1) |
+
+**Is the exploit chain closed?** The chain as R3 ran it is **closed**
+(Verified): an ordinary participant, or any other signed-in account, can no
+longer learn the conversation UUID from `conversationUuid` or `zinvites`, and
+old UUIDs no longer work. What remains (Verified):
+1. **A known xid is still a password.** A vote sent with another member's xid
+   and no token was accepted and changed that member's recorded vote, and the
+   close-of-round audit of that round still said PASS. The fix only made xids
+   harder to learn.
+2. **The xid CSV is still public to anyone holding the UUID.** Once the owner
+   (or a moderator) mints the UUID, for example by opening the admin page that
+   shows the download link, anyone who gets that link can download every
+   participant's xid with no login. Its safety now rests on the owner keeping
+   the link private.
+3. The e-mail subscription route and the no-login report exports are unchanged.
+
+**Do the recommendations still stand?**
+- "An xid is a password, and Pol.is gives every participant everyone else's":
+  the **second half is fixed upstream** (Verified); the first half stands.
+- Item 3, block at the public proxy: **stands**, with lower urgency for
+  `/api/v3/conversationUuid` (now owner-only) and the same urgency for
+  `/api/v3/xid/` (no login), `/api/v3/convSubscriptions`, `/api/v3/notifications/`
+  and `/api/v3/reportExport/` during the round. Add `/api/v3/zinvites/` to the list
+  for older deployments; at d3d38cec it is owner-only. Blocking `/api/v3/xid/` at
+  the public proxy also protects against a leaked owner link.
+- Items 1, 2, 4–7 (server `.env`, nginx log format, CSP, Docker log rotation,
+  post-close purge, audit through `bridge_audit`): **stand** (Inferred for logging
+  and purge, whose code did not change; Verified for e-mail and exports above).
+  The CSP is still needed for Simple Analytics; `jwt-decode` no longer comes from
+  jsdelivr (R2 addendum, W8).
+- Gate 1 decision "accept that xids are bearer credentials ... require the proxy
+  blocks": **stands**. The optional upstream issue "`conversationUuid` should
+  require a moderator" is **done** (#3048). "The xid CSV should require a login"
+  is still open upstream and still worth filing.
+- **New pin:** `stable` @ `d3d38cec8bf81ec2c67fc870ed2abacc59ad0ff2`.
+
+Evidence (gitignored): `research/r3/.local/exports-probe-retest-d3d38ce.json`,
+`xid-exposure-check-retest.out`, `retest-xid-chain.json`, `owner-zinvites.json`,
+`audit-retest-d3d38ce.out`.
