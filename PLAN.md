@@ -378,7 +378,7 @@ Progress: @docs/STATUS.md
 ## Session routine
 - Start: read docs/STATUS.md. Continue the current phase only.
 - Use plan mode before starting a phase. Also use it before touching xid derivation, keys, tokens, sessions, storage or logging.
-- End: update docs/STATUS.md with what's done, what's next, open questions and blockers.
+- End: update docs/STATUS.md with what's done, what's next and blockers. Write each new open question as a file in open-questions/, and list its file name, with a link, under Open questions in STATUS.md.
 - At a gate: write docs/decisions/NNN-<slug>.md with the options and a recommendation, then stop and wait.
 
 ## Privacy floor (never break)
